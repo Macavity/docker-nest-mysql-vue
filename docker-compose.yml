@@ -1,0 +1,79 @@
+version: "3.8"
+
+services:
+  admin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: ulala-phpadmin
+    links:
+      - db:${MYSQL_HOST}
+    depends_on:
+      - db
+    ports:
+      - "8081:80"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      PMA_HOST: ${MYSQL_HOST}
+      PMA_PORT: ${MYSQL_PORT}
+
+  nginx:
+    build: ./docker/nginx/
+    container_name: nginx
+#    restart: on-failure
+    depends_on:
+      - ulala-frontend
+      - ulala-api
+    volumes:
+      - "./frontend:/var/frontend"
+      - "./server:/var/server"
+    ports:
+      - "${NGINX_PORT}:${NGINX_PORT}"
+
+  db:
+    image: mysql/mysql-server:latest
+    restart: on-failure
+    container_name: db
+    volumes:
+      - "dbdata2:/var/lib/mysql"
+    ports:
+      - "${MYSQL_PORT}:${MYSQL_PORT}"
+    expose:
+      - ${MYSQL_PORT}
+    environment:
+      MYSQL_TCP_PORT: ${MYSQL_PORT}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: backend
+      MYSQL_USER: ulala
+      MYSQL_PASSWORD: ulala
+      MYSQL_ROOT_HOST: "%"
+
+  ulala-api:
+    build: ./server/
+    image: node:14.17.6-stretch
+    restart: always
+    container_name: ulala-api
+    links:
+      - db:${MYSQL_HOST}
+    depends_on:
+      - db
+    ports:
+      - "${NEST_PORT}:${NEST_PORT}"
+    volumes:
+      - "./server:/var/server"
+    expose:
+      - "${NEST_PORT}"
+    command: 'yarn run start:dev'
+    env_file: .env
+
+  ulala-frontend:
+    container_name: ulala-frontend
+    build: ./frontend/
+    ports:
+      - "8080:80"
+    volumes:
+      - "./frontend:/var/frontend"
+    links:
+      - ulala-api
+
+
+volumes:
+  dbdata2:
